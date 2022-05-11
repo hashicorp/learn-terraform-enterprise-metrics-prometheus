@@ -1,25 +1,20 @@
-terraform {
-  required_version = ">= 0.14.9" 
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 3.0"
+#Provider Block
+provider "aws" {
+  region = var.aws_region
+  default_tags {
+    tags = {
+      hashicorp-learn = "prometheus_metrics"
     }
   }
+
 }
 
-# Provider Block
-provider "aws" {
-  region  = var.aws_region
-  profile = "default"
-}
+#Create Security Group resource
+resource "aws_security_group" "prometheus_allow_all" {
+  name        = "prometheus_allow_all"
+  description = "Learn tutorial Security Group for prometheus instance"
 
-# Create Security Group resource
-resource "aws_security_group" "education-example-sg" {
-  name        = "education-example-sg"
-  description = "Learn tutorial Security Group"
-  
-ingress {
+  ingress {
     description = "Allow all IP and Ports Inbound"
     from_port   = 0
     to_port     = 0
@@ -36,9 +31,10 @@ ingress {
   }
 }
 
+#data source which will retrieve AMI of existing Terraform Enterprise instance
 data "aws_ami" "amazon_linux" {
   most_recent = true
-  
+
   owners = ["amazon"]
 
   filter {
@@ -51,8 +47,21 @@ data "aws_ami" "amazon_linux" {
 
 }
 
- resource "aws_iam_role" "education_example_role" {
-  name = "test-role"
+#data source which will retrieve subnet_id of existing Terraform Enterprise instance
+data "aws_instance" "get_existing_tfe_subnet_id" {
+  filter {
+    name   = "tag:Name"
+    values = [var.tfe_tag_name]
+  }
+  filter {
+    name   = "image-id"
+    values = [data.aws_ami.amazon_linux.id]
+  }
+}
+
+#Create aws_iam_role resource
+resource "aws_iam_role" "prometheus_aws_iam_role" {
+  name = "prometheus_aws_iam_role"
 
   assume_role_policy = <<EOF
 {
@@ -69,16 +78,18 @@ data "aws_ami" "amazon_linux" {
    ]
  }
  EOF
- }
-
- resource "aws_iam_instance_profile" "education_example_profile" {
-  name = "education_example_profile"
-  role = "${aws_iam_role.education_example_role.name}"
 }
 
- resource "aws_iam_role_policy" "education_example_policy" {
-  name        = "education-example-policy"
-  role        = "${aws_iam_role.education_example_role.id}"
+#Create aws_iam_instance_profile resource
+resource "aws_iam_instance_profile" "prometheus_iam_instance_profile" {
+  name = "prometheus_iam_instance_profile"
+  role = aws_iam_role.prometheus_aws_iam_role.name
+}
+
+#Create aws_iam_role_policy resource
+resource "aws_iam_role_policy" "prometheus_iam_role_policy" {
+  name = "prometheus_iam_role_policy"
+  role = aws_iam_role.prometheus_aws_iam_role.id
 
   policy = <<EOF
 {
@@ -111,33 +122,17 @@ data "aws_ami" "amazon_linux" {
     ]
 }
  EOF
- }
-
-# Create EC2 Instance
-resource "aws_instance" "example_learn_instance" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t2.micro"
-  vpc_security_group_ids = [aws_security_group.education-example-sg.id]
-  subnet_id              = var.subnet_id
-  iam_instance_profile   = "${aws_iam_instance_profile.education_example_profile.name}"
-  user_data = templatefile("prometheus-install.sh.tftpl", { tfe_tag_name = var.tfe_tag_name, aws_region = var.aws_region })
-  tags = {
-    "Name" = "example_learn_instance"
-  }    
 }
 
-# The IP address of your test EC2 instance will be display in this output after the Terraform apply command completes.
- output "b_prometheus_dashboard_ip" {
-   description = "Prometheus instance dashboard"
-   value       = "http://${aws_instance.example_learn_instance.public_ip}:9090/graph"
- }
-
- output "c_grafana_dashboard_ip" {
-   description = "Grafana instance dashboard"
-   value       = "http://${aws_instance.example_learn_instance.public_ip}:3000"
- }
-
-
-
-
-
+# Create EC2 Instance
+resource "aws_instance" "prometheus_instance" {
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = "t2.micro"
+  vpc_security_group_ids = [aws_security_group.prometheus_allow_all.id]
+  subnet_id              = data.aws_instance.get_existing_tfe_subnet_id.subnet_id
+  iam_instance_profile   = aws_iam_instance_profile.prometheus_iam_instance_profile.name
+  user_data              = templatefile("prometheus-install.sh.tftpl", { tfe_tag_name = var.tfe_tag_name, aws_region = var.aws_region })
+  tags = {
+    "Name" = "prometheus_instance"
+  }
+}
