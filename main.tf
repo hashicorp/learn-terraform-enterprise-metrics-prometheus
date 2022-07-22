@@ -85,15 +85,25 @@ resource "aws_security_group" "prometheus_allow_all" {
 
 data "aws_ami" "amazon_linux" {
   most_recent = true
-
-  owners = ["amazon"]
+  owners      = ["amazon"]
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-gp2"]
+  }
 
   filter {
-    name = "name"
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
 
-    values = [
-      "amzn2-ami-kernel-5.10-hvm-*-x86_64-gp2",
-    ]
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
   }
 }
 
@@ -103,10 +113,6 @@ data "aws_instance" "get_existing_tfe_subnet_id" {
   filter {
     name   = "tag:Name"
     values = [var.tfe_tag_name]
-  }
-  filter {
-    name   = "image-id"
-    values = [data.aws_ami.amazon_linux.id]
   }
 }
 
