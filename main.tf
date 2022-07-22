@@ -1,4 +1,5 @@
 #Provider Block
+
 provider "aws" {
   region = var.aws_region
   default_tags {
@@ -10,28 +11,78 @@ provider "aws" {
 }
 
 #Create Security Group resource
+
 resource "aws_security_group" "prometheus_allow_all" {
   name        = "prometheus_allow_all"
   description = "Learn tutorial Security Group for prometheus instance"
 
   ingress {
-    description = "Allow all IP and Ports Inbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "Allow port 9090 inbound"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow port 3000 inbound"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow port 80 inbound"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow port 443 inbound"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
-    description = "Allow all IP and Ports Outbound"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "Allow port 9090 outbound"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow port 3000 outbound"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow port 80 outbound"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow port 443 outbound"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
 #data source which will retrieve AMI of existing Terraform Enterprise instance
+
 data "aws_ami" "amazon_linux" {
   most_recent = true
 
@@ -44,10 +95,10 @@ data "aws_ami" "amazon_linux" {
       "amzn2-ami-kernel-5.10-hvm-*-x86_64-gp2",
     ]
   }
-
 }
 
 #data source which will retrieve subnet_id of existing Terraform Enterprise instance
+
 data "aws_instance" "get_existing_tfe_subnet_id" {
   filter {
     name   = "tag:Name"
@@ -60,6 +111,7 @@ data "aws_instance" "get_existing_tfe_subnet_id" {
 }
 
 #Create aws_iam_role resource
+
 resource "aws_iam_role" "prometheus_aws_iam_role" {
   name = "prometheus_aws_iam_role"
 
@@ -81,12 +133,14 @@ resource "aws_iam_role" "prometheus_aws_iam_role" {
 }
 
 #Create aws_iam_instance_profile resource
+
 resource "aws_iam_instance_profile" "prometheus_iam_instance_profile" {
   name = "prometheus_iam_instance_profile"
   role = aws_iam_role.prometheus_aws_iam_role.name
 }
 
 #Create aws_iam_role_policy resource
+
 resource "aws_iam_role_policy" "prometheus_iam_role_policy" {
   name = "prometheus_iam_role_policy"
   role = aws_iam_role.prometheus_aws_iam_role.id
@@ -125,6 +179,7 @@ resource "aws_iam_role_policy" "prometheus_iam_role_policy" {
 }
 
 # Create EC2 Instance
+
 resource "aws_instance" "prometheus_instance" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = "t2.micro"
