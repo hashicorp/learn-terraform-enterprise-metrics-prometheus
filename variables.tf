@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # Declare variables.
 variable "aws_region" {
   description = "Region in which AWS resources to be created"

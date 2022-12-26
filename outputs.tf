@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # The IP address of your test EC2 instance will be display in this output after the Terraform apply command completes.
 output "prometheus_dashboard_url" {
   description = "Prometheus instance dashboard"
